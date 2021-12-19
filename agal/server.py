@@ -4,6 +4,7 @@ import websockets
 import threading
 import http
 import threading
+import base64
 import json
 import collections
 import mimetypes
@@ -17,6 +18,7 @@ class Global:
    users = set()
    messages = collections.deque()
    message_count = 0
+   config = {}
 
 
 async def main_input(host, port, key):
@@ -29,7 +31,7 @@ async def main_input(host, port, key):
                 message = crypt.json_decrypt(entry)
             else:
                 message = entry
-            print(message, entry)
+            print("Sending %s" % message)
             if message:
                 Global.messages.append(message)
 
@@ -40,14 +42,26 @@ async def main_input(host, port, key):
 
 
 async def static_serve(path, request_headers):
-    print(path)
     parsed = urllib.parse.urlparse(path)
+    if Global.config.get('username') and Global.config.get('password'):
+        response_header = [('WWW-Authenticate', 'Basic realm="Enter the credentials to access."')]
+        auth_header = request_headers.get('Authorization')
+        try:
+            realm, credentials = auth_header.split(' ')
+            if realm == 'Basic':
+                username, password = base64.b64decode(credentials.encode('utf-8')).decode('utf-8').split(':')
+                if username == Global.config['username'] and password == (Global.config['password']):
+                    pass
+                else:
+                    response_header = []
+                    raise Exception()
+        except Exception as e:
+            return (http.HTTPStatus.UNAUTHORIZED, response_header, b'')
     if parsed.path == '/':
         file_path = '%s/static/index.html' % constant.LOCATION
     else:
         file_path = '%s/static/%s' % (constant.LOCATION,
                                       parsed.path.replace('..', ''))
-    print(file_path, os.path.exists(file_path))
     if os.path.exists(file_path):
         content_type = mimetypes.guess_type(file_path)[0] or 'text/plain'
         return (http.HTTPStatus.OK,
@@ -100,10 +114,14 @@ def start_input(*args):
 
 def serve(key="", plain=False,
           host='0.0.0.0', port='8800',
-          input_host='127.0.0.1', input_port='8700'):
+          input_host='127.0.0.1', input_port='8700',
+          username='', password=''):
     if not (key or plain):
         key = message_crypt.gen_key()
         print("Encryption key generated:\n%s\n" % key)
+    if username and password:
+        Global.config['username'] = username
+        Global.config['password'] = password
     thread_web = threading.Thread(target=start_web,
                                   args=(host, int(port)),
                                   daemon=True)
