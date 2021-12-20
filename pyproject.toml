@@ -1,10 +1,10 @@
 [tool.poetry]
 name = "agal"
-version = "0.0.1"
+version = "0.0.2"
 description = ""
 authors = ["Gongziting Tech Ltd."]
 license = "MIT"
-
+homepage = "https://github.com/gzttech/agal"
 [tool.poetry.scripts]
 agal-cli = 'agal.cli:main'
 agal-server = 'agal.server:main'
@@ -13,6 +13,7 @@ agal-server = 'agal.server:main'
 python = "^3.7"
 websockets = "^10.1"
 cryptography = "^3.4.7"
+fire = "^0.3.1"
 
 [tool.poetry.dev-dependencies]
 
