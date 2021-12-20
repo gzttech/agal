@@ -54,12 +54,28 @@ function App() {
           }}>
           {jsonPretty ? "Text" : "JSON"}
         </button>
+        <button
+          className="box-content w-24 h-12 z-50 text-white text-md font-semibold bg-blue-500 shadow"
+          onClick={() => {
+            window.open('https://github.com/gzttech/agal', '_blank')
+          }}>
+          Docs
+        </button>
       </div>
       <div className="container mx-auto px-32 max-h-screen overflow-y-scroll">
         {
           messageList.map( (entry, idx) => {
             return (
-              <div key={ entry.meta.key } className={"w-full mb-1 " + ((idx % 2 === 0) ? "bg-blue-50": "")}>
+              <div key={ entry.meta.key } className={"relative w-full mb-1 " + ((idx % 2 === 0) ? "bg-blue-50": "")}>
+                <div
+                  className="absolute right-0 top-0 text-sm text-gray-400"
+                  onClick={() => {
+                    navigator.clipboard.writeText(entry.payload).then(function() {
+                    });
+                  }}
+                >
+                  copy
+                </div>
                 <pre className="block whitespace-pre-wrap break-all">
                   { jsonPretty ? toPrettyJson(entry.payload) : entry.payload }
                 </pre>
