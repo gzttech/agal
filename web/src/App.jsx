@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './App.css';
 
 
 function App() {
   const [messageList, setMessageList] = useState([]);
   const [stopUpdate, setStopUpdate] = useState(false);
+  const stopUpdateStateRef = useRef();
   const [jsonPretty, setJsonPretty] = useState(true);
   const [socket, setSocket] = useState(null);
 
@@ -18,13 +19,7 @@ function App() {
     }
   }
 
-  useEffect(() => {
-    if(!!socket && (socket.readyState === 1 || socket.readyState === 0)) {
-      socket.close()
-    }
-    if(stopUpdate) {
-      return;
-    }
+  const initWebSocket = () => {
     const websocket = new WebSocket(`ws://${window.location.host}/data`);
     setSocket(websocket);
     websocket.addEventListener(
@@ -35,6 +30,23 @@ function App() {
           setMessageList((m) => [entry, ...m].slice(0, 30));
         }
       });
+    websocket.addEventListener(
+      "close",
+      () => {
+        if(!stopUpdateStateRef.current) {
+          setTimeout(initWebSocket, 1000);
+	}
+      });
+  }
+
+  useEffect(() => {
+    if(!!socket && (socket.readyState === 1 || socket.readyState === 0)) {
+      socket.close()
+    }
+    if(stopUpdate) {
+      return;
+    }
+    initWebSocket();
   }, [stopUpdate]);
 
   return (
@@ -43,6 +55,7 @@ function App() {
         <button
           className="box-content w-24 h-12 z-50 text-white text-md font-semibold bg-blue-500 shadow"
           onClick={() => {
+	    stopUpdateStateRef.current = !stopUpdate;
             setStopUpdate(!stopUpdate);
           }}>
           {stopUpdate ? "Resume" : "Pause"}
