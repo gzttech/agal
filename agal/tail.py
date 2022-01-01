@@ -25,8 +25,13 @@ def fd_list_to_dict(fd_list):
 
 async def readlines(fd_info):
     global LINES
+    def _readline():
+        try:
+            return fd_info['fd'].readline()
+        except Exception as e:
+            return ''
     loop = asyncio.get_running_loop()
-    line = await loop.run_in_executor(pool, fd_info['fd'].readline)
+    line = await loop.run_in_executor(pool, _readline)
     if not line:
         await asyncio.sleep(0.1)
         return
