@@ -4,10 +4,14 @@ import './App.css';
 
 function App() {
   const [messageList, setMessageList] = useState([]);
-  const [stopUpdate, setStopUpdate] = useState(false);
-  const stopUpdateStateRef = useRef();
   const [jsonPretty, setJsonPretty] = useState(true);
   const [socket, setSocket] = useState(null);
+  const [config, setConfig] = useState({
+    maxLines: 30,
+    stopUpdate: false
+  });
+  const configRef = useRef();
+  configRef.current = config;
 
   const toPrettyJson = (s) => {
     try {
@@ -27,13 +31,13 @@ function App() {
       ({ data }) => {
         let entry = JSON.parse(data);
         if(!!entry.payload && !!entry.meta) {
-          setMessageList((m) => [entry, ...m].slice(0, 30));
+          setMessageList((m) => [entry, ...m].slice(0, configRef.current.maxLines));
         }
       });
     websocket.addEventListener(
       "close",
       () => {
-        if(!stopUpdateStateRef.current) {
+        if(!configRef.current.stopUpdate) {
           setTimeout(initWebSocket, 1000);
 	}
       });
@@ -43,22 +47,34 @@ function App() {
     if(!!socket && (socket.readyState === 1 || socket.readyState === 0)) {
       socket.close()
     }
-    if(stopUpdate) {
+    console.log(config);
+    if(config.stopUpdate) {
       return;
     }
     initWebSocket();
-  }, [stopUpdate]);
+  }, [config.stopUpdate]);
 
   return (
     <div className="container">
       <div className="absolute left-4 top-4 grid grid-cols-1 gap-4">
+        <div className="w-24 h-8">
+          <input
+            className="w-12 h-8"
+            type="number"
+            value={config.maxLines}
+            title="Max lines kept."
+            onChange={(event) => {
+                configRef.current = {...config, maxLines: event.target.value};
+                setConfig({...config, maxLines: event.target.value});
+          }} /> Lines
+        </div>
         <button
           className="box-content w-24 h-12 z-50 text-white text-md font-semibold bg-blue-500 shadow"
           onClick={() => {
-	    stopUpdateStateRef.current = !stopUpdate;
-            setStopUpdate(!stopUpdate);
+            configRef.current = {...config, stopUpdate: !config.stopUpdate};
+            setConfig((config) => ({...config, stopUpdate: !config.stopUpdate}));
           }}>
-          {stopUpdate ? "Resume" : "Pause"}
+          {config.stopUpdate ? "Resume" : "Pause"}
         </button>
         <button
           className="box-content w-24 h-12 z-50 text-white text-md font-semibold bg-blue-500 shadow"
@@ -75,7 +91,7 @@ function App() {
           Docs
         </button>
       </div>
-      <div className="container mx-auto px-32 max-h-screen overflow-y-scroll">
+      <div className="container mx-auto pl-32 max-h-screen overflow-y-scroll">
         {
           messageList.map( (entry, idx) => {
             return (
@@ -87,7 +103,7 @@ function App() {
                     });
                   }}
                 >
-                  copy
+                  <button>copy</button>
                 </div>
                 <pre className="block whitespace-pre-wrap break-all">
                   { jsonPretty ? toPrettyJson(entry.payload) : entry.payload }
