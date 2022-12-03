@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "agal"
-version = "0.0.5"
+version = "0.0.6"
 description = ""
 authors = ["Gongziting Tech Ltd."]
 license = "MIT"
