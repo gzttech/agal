@@ -12,6 +12,7 @@ import fire
 import urllib.parse
 from . import message_crypt
 from . import constant
+from .util import TokenStore
 
 
 class Global:
@@ -19,6 +20,7 @@ class Global:
    messages = collections.deque()
    message_count = 0
    config = {}
+   token_store = TokenStore()
 
 
 async def main_input(host, port, key):
@@ -57,7 +59,11 @@ async def static_serve(path, request_headers):
                     raise Exception()
         except Exception as e:
             return (http.HTTPStatus.UNAUTHORIZED, response_header, b'')
-    if parsed.path == '/':
+    if parsed.path == '/token':
+        return (http.HTTPStatus.OK,
+                [('Content-Type', 'application/json')],
+                json.dumps({'token': Global.token_store.gen_token()}).encode('utf-8'))
+    elif parsed.path == '/':
         file_path = '%s/static/index.html' % constant.LOCATION
     else:
         file_path = '%s/static/%s' % (constant.LOCATION,
@@ -70,24 +76,36 @@ async def static_serve(path, request_headers):
 
 
 async def distribution(websocket):
-   try:
-       Global.users.add(websocket)
-       while True:
-           try:
-               message = Global.messages.popleft()
-               Global.message_count += 1
-               if isinstance(message, dict) and message.get('meta'):
-                   message['meta']['key'] = '%s%010d' % (message['meta'].get('timestamp', ''),
-                                                        Global.message_count)
-               websockets.broadcast(Global.users, json.dumps(message))
-           except Exception as e:
-               if isinstance(e, IndexError):
-                   pass
-               else:
-                   print(e)
-               await asyncio.sleep(0.1)
-   finally:
-       Global.users.remove(websocket)
+    try:
+        print(websocket.request_headers)
+        authed = False
+        async for entry in websocket:
+            if entry and entry.startswith('auth '):
+                token = entry[5:]
+                if Global.token_store.check_token(token):
+                    authed = True
+                else:
+                    authed = False
+                break
+        if authed:
+            Global.users.add(websocket)
+            while True:
+                try:
+                    message = Global.messages.popleft()
+                    Global.message_count += 1
+                    if isinstance(message, dict) and message.get('meta'):
+                        message['meta']['key'] = '%s%010d' % (message['meta'].get('timestamp', ''),
+                                                              Global.message_count)
+                    websockets.broadcast(Global.users, json.dumps(message))
+                except Exception as e:
+                    if isinstance(e, IndexError):
+                        pass
+                    else:
+                        print(e)
+                    await asyncio.sleep(0.1)
+    finally:
+        if websocket in Global.users:
+            Global.users.remove(websocket)
 
 
 async def main_web(host, port):

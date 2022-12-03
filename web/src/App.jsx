@@ -21,31 +21,44 @@ function App() {
     catch(e) {
       return s;
     }
-  }
+  };
 
   const initWebSocket = () => {
-    const websocket = new WebSocket(`ws://${window.location.host}/data`);
-    setSocket(websocket);
-    websocket.addEventListener(
-      "message",
-      ({ data }) => {
-        let entry = JSON.parse(data);
-        if(!!entry.payload && !!entry.meta) {
-          setMessageList((m) => [entry, ...m].slice(0, configRef.current.maxLines));
+    fetch("/token")
+      .then((response) => response.json())
+      .then((data) => {
+        let token = data?.token??"";
+        if(!!token) {
+          const websocket = new WebSocket(`ws://${window.location.host}/data`);
+          setSocket(websocket);
+          websocket.addEventListener(
+            "open",
+            () => {
+              websocket.send("auth " + token);
+            }
+          );
+          websocket.addEventListener(
+            "message",
+            ({ data }) => {
+            let entry = JSON.parse(data);
+            if(!!entry.payload && !!entry.meta) {
+              setMessageList((m) => [entry, ...m].slice(0, configRef.current.maxLines));
+            }
+          });
+          websocket.addEventListener(
+            "close",
+            () => {
+              if(!configRef.current.stopUpdate) {
+                setTimeout(initWebSocket, 1000);
+              }
+          });
         }
       });
-    websocket.addEventListener(
-      "close",
-      () => {
-        if(!configRef.current.stopUpdate) {
-          setTimeout(initWebSocket, 1000);
-	}
-      });
-  }
+  };
 
   useEffect(() => {
     if(!!socket && (socket.readyState === 1 || socket.readyState === 0)) {
-      socket.close()
+      socket.close();
     }
     console.log(config);
     if(config.stopUpdate) {
@@ -86,7 +99,7 @@ function App() {
         <button
           className="box-content w-24 h-12 z-50 text-white text-md font-semibold bg-blue-500 shadow"
           onClick={() => {
-            window.open('https://github.com/gzttech/agal', '_blank')
+            window.open('https://github.com/gzttech/agal', '_blank');
           }}>
           Docs
         </button>
